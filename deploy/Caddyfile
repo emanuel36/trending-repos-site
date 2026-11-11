@@ -1,8 +1,0 @@
-{$TRENDING_DOMAIN} {
-	root * /srv/trending-site
-	encode gzip
-	basic_auth {
-		{$TRENDING_USER} {$TRENDING_PASSWORD_HASH}
-	}
-	file_server
-}
