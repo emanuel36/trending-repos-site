@@ -10,6 +10,9 @@ from trending_site import gemini, pending, sources
 FEED_URL = "https://emanuel36.github.io/trending-repos-site/data/feed.json"
 TZ = zoneinfo.ZoneInfo("America/Sao_Paulo")
 SOURCE_COUNT = 2
+# Bought stars come without forks; real repos this popular almost always have some. A real repo
+# dropped on its first day comes back on a later fetch, once it has forks.
+SPAM_MIN_STARS = 200
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +32,11 @@ def new_client(api_key: str, model: str) -> gemini.Client:
     return gemini.Client(api_key, model)
 
 
+def looks_like_spam(repo: dict) -> bool:
+    """Tells whether a repo's stars look bought: many of them and not a single fork."""
+    return repo.get("forks") == 0 and (repo.get("stars") or 0) >= SPAM_MIN_STARS
+
+
 def _fetch(feed: dict, day: str, fetch, enrich) -> list[dict]:
     """Queues today's new repos; returns the sources that failed."""
     repos, failed = fetch(feed_model.known_names(feed))
@@ -37,9 +45,14 @@ def _fetch(feed: dict, day: str, fetch, enrich) -> list[dict]:
     enriched = []
     for repo in repos:
         try:
-            enriched.append(enrich(repo))
+            data = enrich(repo)
         except sources.EnrichFailed as error:
             log.warning("skipping %s: %s", repo["name"], error)
+            continue
+        if looks_like_spam(data):
+            log.info("dropping %s: %s stars and no forks", repo["name"], data["stars"])
+            continue
+        enriched.append(data)
     feed_model.add_pending(feed, enriched, day)
     if len(failed) < SOURCE_COUNT:
         feed["last_fetch"] = day

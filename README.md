@@ -47,6 +47,9 @@ it every day on free GitHub services, so it does not depend on that machine bein
   12:00 and summarize whatever is still waiting; if the main run did not fetch the rankings,
   the first retry does it. GitHub may start a scheduled run late or skip it.
 - **Limits:** at most 30 repos are published per day. The rest wait for the next run.
+- **Spam:** a repo with 200 or more stars and no forks is dropped before it is summarized.
+  Bought stars come without forks; real repos that popular almost always have some. A real
+  repo dropped on its first day comes back on a later day once someone forks it.
 - **Model:** summaries use the Gemini model gemini-3.5-flash-lite by default. The optional
   secret GEMINI_MODEL selects another one.
 - **Failed summaries:** when Gemini is down or out of quota, repos wait and nothing counts
