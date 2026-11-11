@@ -22,8 +22,9 @@
   .thumb { background:#21262d; border-radius:6px; display:flex; align-items:center;
            justify-content:center; color:var(--mute); font-size:11px; text-align:center }
   img.thumb { display:block; width:100%; object-fit:cover }
-  .cols { display:grid; grid-template-columns:36px 64px 1fr 90px 130px 90px; gap:12px;
-          align-items:center }
+  .cols { display:grid; grid-template-columns:36px 64px minmax(0,1fr) 90px 130px 90px;
+          gap:12px; align-items:center }
+  .cols > :nth-child(3) { overflow-wrap:anywhere }
   .head { padding:0 14px 6px; color:var(--mute); font-size:12px }
   details { background:var(--panel); border:1px solid var(--line); border-radius:8px;
             margin-bottom:8px }
@@ -37,7 +38,7 @@
   dl { margin:6px 0 0; display:grid; grid-template-columns:max-content 1fr; gap:2px 10px }
   dt { color:var(--mute) } dd { margin:0 }
   @media (max-width:800px) {
-    .cols { grid-template-columns:28px 1fr 80px }
+    .cols { grid-template-columns:28px minmax(0,1fr) 80px }
     .cols > :nth-child(2), .cols > :nth-child(5), .cols > :nth-child(6) { display:none }
     .more { padding-left:14px; grid-template-columns:1fr }
   }
