@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from trending_site import feed as feed_model
 from trending_site import gemini, sources
-from trending_site.job import step, today
+from trending_site.job import looks_like_spam, step, today
 
 NOW = datetime(2026, 11, 11, 9, 0, tzinfo=UTC)
 TODAY = "2026-11-11"
@@ -88,6 +88,31 @@ class StepTest(unittest.TestCase):
         names = [r["name"] for d in feed["days"] for r in d["repos"]]
         self.assertEqual(names, ["Owner/Repo"])
         self.assertEqual(feed_model.problems(feed), [])
+
+    def test_starred_repos_without_forks_are_dropped_before_gemini(self):
+        numbers = {"spam/one": (1300, 0), "real/two": (1300, 66), "new/three": (150, 0),
+                   "unknown/four": (1300, None)}
+
+        def enrich(repo):
+            stars, forks = numbers[repo["name"]]
+            return {**repo, "stars": stars, "forks": forks, "readme": "text"}
+
+        feed = feed_model.empty()
+        client = FakeClient()
+        fetch = fake_fetch([{"name": name} for name in numbers])
+        with self.assertLogs("trending_site.job", "INFO") as logs:
+            step(feed, client, NOW, fetch_sources=True, fetch=fetch, enrich=enrich)
+        self.assertEqual(client.calls, ["real/two", "new/three", "unknown/four"])
+        self.assertNotIn("spam/one", [r["name"] for d in feed["days"] for r in d["repos"]])
+        self.assertEqual(feed["pending"], [])
+        self.assertTrue(any("spam/one" in line for line in logs.output))
+
+    def test_spam_rule_boundaries(self):
+        cases = [({"stars": 200, "forks": 0}, True), ({"stars": 199, "forks": 0}, False),
+                 ({"stars": 1300}, False), ({"stars": None, "forks": 0}, False)]
+        for repo, expected in cases:
+            with self.subTest(repo=repo):
+                self.assertEqual(looks_like_spam(repo), expected)
 
     def test_both_sources_failed_still_works_pending_and_fails_status(self):
         feed = feed_model.empty()
