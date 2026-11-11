@@ -1,0 +1,114 @@
+name: daily
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "0 9 * * *"
+    - cron: "0 12 * * *"
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "run fetches and summarizes; retry summarizes what is pending"
+        type: choice
+        options: [run, retry]
+        default: run
+      restore_run_id:
+        description: "run id whose feed to publish again; leave empty for a normal run"
+        type: string
+        default: ""
+      first_run:
+        description: "start from an empty feed; only for the very first run"
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          mode=retry
+          if [ "$EVENT" = schedule ] && [ "$SCHEDULE" = "0 6 * * *" ]; then
+            mode=run
+          elif [ "$EVENT" = workflow_dispatch ] && [ "$INPUT_MODE" = run ]; then
+            mode=run
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+      - name: Download the feed to restore
+        if: ${{ inputs.restore_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: feed-${{ inputs.restore_run_id }}
+          run-id: ${{ inputs.restore_run_id }}
+          github-token: ${{ github.token }}
+          path: site/data
+
+      - name: Update the feed
+        id: job
+        if: ${{ inputs.restore_run_id == '' }}
+        continue-on-error: true
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FIRST_RUN: ${{ inputs.first_run }}
+        run: |
+          args=("$MODE" --out site/data)
+          if [ "$FIRST_RUN" = true ]; then
+            args+=(--first-run)
+          fi
+          python3 -m trending_site "${args[@]}"
+
+      - name: Keep the feed
+        if: ${{ !cancelled() && hashFiles('site/data/feed.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: feed-${{ github.run_id }}
+          path: site/data/feed.json
+          retention-days: 90
+          overwrite: true
+
+      - name: Configure Pages
+        if: ${{ !cancelled() && hashFiles('site/data/feed.json') != '' }}
+        uses: actions/configure-pages@v5
+
+      - name: Package the site
+        if: ${{ !cancelled() && hashFiles('site/data/feed.json') != '' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to Pages
+        id: deploy
+        if: ${{ !cancelled() && hashFiles('site/data/feed.json') != '' }}
+        uses: actions/deploy-pages@v4
+
+      - name: Fail when the job failed
+        if: ${{ always() && steps.job.outcome == 'failure' }}
+        run: |
+          echo "The job step failed; see its log." >&2
+          exit 1
