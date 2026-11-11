@@ -1,5 +1,7 @@
 # Trending repos site — design
 
+> **Superseded** by `2026-11-11-trending-repos-pages-design.md` (GitHub Pages, per-visitor history).
+
 ## Intent
 
 The user follows new open-source projects through the `trending-repos` Claude Code skill
