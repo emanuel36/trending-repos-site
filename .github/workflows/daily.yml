@@ -2,10 +2,11 @@ name: daily
 
 on:
   schedule:
-    - cron: "0 6 * * *"
-    - cron: "0 9 * * *"
-    - cron: "0 12 * * *"
-    - cron: "0 15 * * *"
+    # Not on the hour: GitHub delays or drops scheduled runs at the start of every hour.
+    - cron: "17 6 * * *"
+    - cron: "17 9 * * *"
+    - cron: "17 12 * * *"
+    - cron: "17 15 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -50,7 +51,7 @@ jobs:
           INPUT_MODE: ${{ inputs.mode }}
         run: |
           mode=retry
-          if [ "$EVENT" = schedule ] && [ "$SCHEDULE" = "0 6 * * *" ]; then
+          if [ "$EVENT" = schedule ] && [ "$SCHEDULE" = "17 6 * * *" ]; then
             mode=run
           elif [ "$EVENT" = workflow_dispatch ] && [ "$INPUT_MODE" = run ]; then
             mode=run

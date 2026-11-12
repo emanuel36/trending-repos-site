@@ -43,9 +43,10 @@ it every day on free GitHub services, so it does not depend on that machine bein
 
 ## How it works
 
-- **Schedule:** the main run starts at 03:00 São Paulo time. Retries start at 06:00, 09:00 and
-  12:00 and summarize whatever is still waiting; if the main run did not fetch the rankings,
-  the first retry does it. GitHub may start a scheduled run late or skip it.
+- **Schedule:** the main run starts at 03:17 São Paulo time. Retries start at 06:17, 09:17 and
+  12:17 and summarize whatever is still waiting; if the main run did not fetch the rankings,
+  the first retry does it. The times are off the hour on purpose, because GitHub delays or
+  drops scheduled runs at the start of every hour. A run can still start late or be skipped.
 - **Limits:** at most 30 repos are published per day. The rest wait for the next run.
 - **Spam:** a repo with 200 or more stars and no forks is dropped before it is summarized.
   Bought stars come without forks; real repos that popular almost always have some. A real
